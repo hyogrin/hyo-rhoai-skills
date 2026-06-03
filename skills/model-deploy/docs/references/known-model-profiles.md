@@ -68,6 +68,21 @@ When the user does not specify a model source, use the `hf://` URI listed in the
 
 - **Recommended storageUri (7B)**: `hf://mistralai/Mistral-7B-Instruct-v0.3` (public, no auth)
 
+## Qwen 3.x (Alibaba / Red Hat AI)
+
+| Variant | Parameters | GPUs | GPU Type | VRAM | Key vLLM Args |
+|---------|-----------|------|----------|------|---------------|
+| Qwen3-14B-FP8-dynamic | 14B (FP8) | 1 | A100/H100 80GB | 28GB | `--max-model-len=32768 --gpu-memory-utilization=0.92` |
+| Qwen3-30B-A3B | 30B (MoE, 3B active) | 1 | A10G/L4/A100 | 16GB | `--max-model-len=32768` |
+
+- **Recommended storageUri (14B FP8)**: `hf://RedHatAI/Qwen3-14B-FP8-dynamic` (public, no auth)
+- **Recommended storageUri (30B-A3B)**: `hf://RedHatAI/Qwen3-30B-A3B` (public, no auth)
+- **MaaS compatibility**: FP8-dynamic models from `RedHatAI/` org are compatible with `LLMInferenceService` (llm-d)
+- Tool calling: `--enable-auto-tool-choice --tool-call-parser=qwen3_coder` (NOT `qwen3`)
+- Reasoning: `--reasoning-parser=qwen3`
+- **Important**: vLLM does NOT recognize `qwen3` as a valid tool-call-parser. Use `qwen3_coder` or `qwen3_xml`.
+- Storage-initializer deadlock workaround: Use direct vLLM download with `HF_HUB_OFFLINE=0` (see [deployment-annotations.md](deployment-annotations.md))
+
 ## When a Model Is Not Listed
 
 If the requested model is not in this file, the agent MUST use the live doc lookup protocol:

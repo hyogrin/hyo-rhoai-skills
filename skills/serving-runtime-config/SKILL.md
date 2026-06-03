@@ -163,6 +163,9 @@ metadata:
     opendatahub.io/dashboard: "true"
   annotations:
     openshift.io/display-name: "[Display Name]"
+    opendatahub.io/apiProtocol: REST
+    opendatahub.io/template-name: "[runtime-name]"
+    opendatahub.io/template-display-name: "[Display Name]"
 spec:
   supportedModelFormats:
     - name: [model-format-name]
@@ -268,6 +271,23 @@ For common issues (GPU scheduling, OOMKilled, image pull errors, RBAC), see [com
 2. Check the runtime is in the same namespace as the InferenceService
 3. Ensure the runtime has `opendatahub.io/dashboard: "true"` label
 
+### Issue 1b: "Unknown Serving Runtime" in RHOAI Dashboard
+
+**Error**: The RHOAI Dashboard displays "Unknown Serving Runtime" for a deployed model
+
+**Cause**: The ServingRuntime is missing required annotations that the Dashboard uses for display and matching.
+
+**Solution:** Add these annotations to the ServingRuntime:
+```yaml
+annotations:
+  openshift.io/display-name: "My Runtime Name"
+  opendatahub.io/apiProtocol: REST
+  opendatahub.io/template-name: my-runtime-name
+  opendatahub.io/template-display-name: "My Runtime Display Name"
+```
+
+See [deployment-annotations.md](../model-deploy/docs/references/deployment-annotations.md) for the full reference.
+
 ### Issue 2: Runtime Port Mismatch
 
 **Error**: InferenceService created but health checks fail, endpoint returns connection refused
@@ -291,6 +311,7 @@ See [Prerequisites](#prerequisites) for the complete list of required and option
 
 ### Reference Documentation
 - [supported-runtimes.md](docs/references/supported-runtimes.md) - Runtime capabilities and model format names
+- [deployment-annotations.md](../model-deploy/docs/references/deployment-annotations.md) - Required annotations for RHOAI Dashboard visibility
 - [live-doc-lookup.md](../references/live-doc-lookup.md) - Protocol for fetching specs for unknown frameworks
 
 ## Critical: Human-in-the-Loop Requirements

@@ -2,6 +2,7 @@
 name: model-deploy
 description: |
   Deploy AI/ML models on OpenShift AI using KServe with vLLM, NVIDIA NIM, or Caikit+TGIS runtimes.
+  Supports both standard InferenceService and LLMInferenceService (llm-d) for MaaS integration.
 
   Use when:
   - "Deploy Llama 3 on my cluster"
@@ -9,8 +10,11 @@ description: |
   - "Deploy a model with NIM"
   - "Create an InferenceService for Granite"
   - "I need to serve a model on OpenShift AI"
+  - "Deploy a model with MaaS support via llm-d"
+  - "My model shows Unknown Serving Runtime in the dashboard"
 
-  Handles runtime selection, GPU validation, InferenceService CR creation, and rollout monitoring.
+  Handles runtime selection, GPU validation, InferenceService/LLMInferenceService CR creation,
+  annotation configuration for RHOAI Dashboard, and rollout monitoring.
 
   NOT for NIM platform setup (use /nim-setup first).
   NOT for custom runtime creation (use /serving-runtime-config).
@@ -22,7 +26,7 @@ allowed-tools: resources_get resources_list resources_create_or_update pods_list
 
 # /model-deploy Skill
 
-Deploy AI/ML models on Red Hat OpenShift AI using KServe. Supports vLLM, NVIDIA NIM, and Caikit+TGIS serving runtimes. Handles runtime selection, hardware profile lookup (with live doc fallback), GPU pre-flight checks, InferenceService CR creation, rollout monitoring, and post-deployment validation.
+Deploy AI/ML models on Red Hat OpenShift AI using KServe. Supports vLLM, NVIDIA NIM, and Caikit+TGIS serving runtimes via standard `InferenceService`, and `LLMInferenceService` (llm-d) for MaaS gateway integration. Handles runtime selection, hardware profile lookup (with live doc fallback), GPU pre-flight checks, annotation configuration for RHOAI Dashboard, InferenceService/LLMInferenceService CR creation, rollout monitoring, and post-deployment validation.
 
 ## Prerequisites
 
@@ -75,6 +79,25 @@ Deploy AI/ML models on Red Hat OpenShift AI using KServe. Supports vLLM, NVIDIA 
 - You need to create or customize a ServingRuntime (use `/serving-runtime-config`)
 - You need to troubleshoot a failed or slow deployment (use `/debug-inference`)
 - You need to analyze model performance or GPU metrics (use `/ai-observability`)
+
+## Deployment Type Selection: InferenceService vs LLMInferenceService
+
+Before starting the workflow, determine which CRD to use:
+
+| Criteria | Use InferenceService | Use LLMInferenceService (llm-d) |
+|----------|:-------------------:|:-------------------------------:|
+| MaaS Gateway needed (API keys, rate limiting) | | Yes |
+| Direct model endpoint (no gateway) | Yes | |
+| RHOAI 3.4+ with MaaS configured | | Yes |
+| Older RHOAI / no MaaS | Yes | |
+| Models in RedHatAI org (FP8-dynamic) | Either | Preferred |
+| Custom vLLM args needed | Yes (direct) | Via `VLLM_ADDITIONAL_ARGS` env |
+
+**Annotations Reference**: See [deployment-annotations.md](docs/references/deployment-annotations.md) for the full annotation reference, including:
+- Required annotations/labels for RHOAI Dashboard visibility
+- Fixing "Unknown Serving Runtime" errors
+- LLMInferenceService configuration patterns
+- Storage initializer known issues and workarounds
 
 ## Workflow
 
@@ -344,6 +367,37 @@ Show deployment progress tracking: Pod Scheduled, Image Pulled, Container Starte
 ## Common Issues
 
 For common issues (GPU scheduling, OOMKilled, image pull errors, RBAC), see [common-issues.md](../references/common-issues.md).
+For annotation-related issues (Unknown Serving Runtime, Dashboard visibility), see [deployment-annotations.md](docs/references/deployment-annotations.md).
+
+### Issue: Unknown Serving Runtime in RHOAI Dashboard
+
+**Error**: Model appears as "Unknown Serving Runtime" in RHOAI Dashboard
+
+**Cause**: The `ServingRuntime` is missing required OpenDataHub annotations.
+
+**Solution**: Add all required annotations to the `ServingRuntime`:
+```yaml
+metadata:
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    openshift.io/display-name: "vLLM ServingRuntime (FP8)"
+    opendatahub.io/apiProtocol: REST
+    opendatahub.io/template-name: vllm-runtime
+    opendatahub.io/template-display-name: "vLLM ServingRuntime for KServe"
+```
+
+Also ensure the `InferenceService` has:
+```yaml
+metadata:
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    openshift.io/display-name: "My Model Name"
+```
+
+See [deployment-annotations.md](docs/references/deployment-annotations.md) for complete reference.
 
 ### Issue 1: InferenceService Stuck in "Unknown"
 
@@ -443,6 +497,7 @@ See [Prerequisites](#prerequisites) for the complete list of required and option
 ### Reference Documentation
 - [known-model-profiles.md](docs/references/known-model-profiles.md) - Hardware profiles for common models
 - [supported-runtimes.md](docs/references/supported-runtimes.md) - Runtime capabilities and selection criteria
+- [deployment-annotations.md](docs/references/deployment-annotations.md) - Annotations for InferenceService, LLMInferenceService, ServingRuntime, and RHOAI Dashboard
 - [live-doc-lookup.md](../references/live-doc-lookup.md) - Protocol for fetching specs for unknown models
 
 ## Critical: Human-in-the-Loop Requirements
